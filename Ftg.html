@@ -1,0 +1,474 @@
+<html>
+<head>
+  <base href="https://DollarGame.com">
+  <title>The Dollar Game</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+    }
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #graph {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .node {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      position: absolute;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      font-size: 20px;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      border: 3px solid rgba(255, 255, 255, 0.7);
+    }
+    .node:hover {
+      transform: scale(1.1) translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+    }
+    .node.positive {
+      background: linear-gradient(145deg, #27ae60, #2ecc71);
+    }
+    .node.negative {
+      background: linear-gradient(145deg, #c0392b, #e74c3c);
+    }
+    .node.zero {
+      background: linear-gradient(145deg, #95a5a6, #7f8c8d);
+    }
+    .node .currency {
+      font-size: 14px;
+      font-weight: normal;
+      color: #ecf0f1;
+    }
+    .edge {
+      position: absolute;
+      height: 4px;
+      transform-origin: 0 50%;
+      pointer-events: none;
+      opacity: 0.7;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      background: linear-gradient(90deg, #2980b9, #3498db);
+      transition: all 0.1s ease;
+    }
+    .edge.active-buy {
+      height: 6px;
+      opacity: 1;
+      box-shadow: 0 0 10px #27ae60, 0 0 20px #27ae60;
+      background: linear-gradient(90deg, #2ecc71, #27ae60, #2ecc71);
+      background-size: 200% 100%;
+      animation: gradientFlow 0.2s linear;
+    }
+    .edge.active-sell {
+      height: 6px;
+      opacity: 1;
+      box-shadow: 0 0 10px #e74c3c, 0 0 20px #e74c3c;
+      background: linear-gradient(90deg, #e74c3c, #c0392b, #e74c3c);
+      background-size: 200% 100%;
+      animation: gradientFlow 0.2s linear;
+    }
+    @keyframes gradientFlow {
+      0% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    #controls {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      background: linear-gradient(145deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+      background: linear-gradient(145deg, #2980b9, #3498db);
+    }
+    button:active {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    #message {
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(15, 32, 39, 0.9);
+      color: #ecf0f1;
+      padding: 15px 30px;
+      border-radius: 30px;
+      font-size: 20px;
+      font-weight: bold;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    #message.show {
+      opacity: 1;
+      transform: translate(-50%, 10px);
+    }
+    #info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      max-width: 300px;
+    }
+    #info-panel h2 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    #info-panel p {
+      margin-bottom: 10px;
+      color: #34495e;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="graph"></div>
+    <div id="message"></div>
+    <div id="controls">
+      <button id="new-game">New Game</button>
+      <button id="solve">Solve</button>
+      <button id="copy-level">Copy Level</button>
+      <button id="paste-level">Paste Level</button>
+    </div>
+    <div id="info-panel">
+      <h2>Forex Trading Game</h2>
+      <p><strong>Goal:</strong> Balance all currency nodes to be non-negative.</p>
+      <p><strong>Controls:</strong></p>
+      <ul>
+        <li><strong>Left-click:</strong> Buy currency from connected nodes</li>
+        <li><strong>Right-click:</strong> Sell currency to connected nodes</li>
+      </ul>
+      <p><strong>Tip:</strong> The total currency volume remains constant. Make strategic trades!</p>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('game-container');
+    const graph = document.getElementById('graph');
+    const newGameBtn = document.getElementById('new-game');
+    const solveBtn = document.getElementById('solve');
+    const copyLevelBtn = document.getElementById('copy-level');
+    const pasteLevelBtn = document.getElementById('paste-level');
+    const messageEl = document.getElementById('message');
+    let nodes = [];
+    let edges = [];
+    let edgeElements = [];
+
+    function createNode(x, y, value) {
+      const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD'];
+      let currency1, currency2;
+      do {
+        currency1 = currencies[Math.floor(Math.random() * currencies.length)];
+        currency2 = currencies[Math.floor(Math.random() * currencies.length)];
+      } while (currency1 === currency2);
+
+      const currencyPair = `${currency1}/${currency2}`;
+      const node = document.createElement('div');
+      node.className = 'node';
+      node.style.left = `${x}px`;
+      node.style.top = `${y}px`;
+      node.dataset.value = value;
+
+      node.dataset.currency1 = currency1;
+      node.dataset.currency2 = currency2;
+
+      node.innerHTML = `<span class="value">${value}</span><br><span class="currency">${currencyPair}</span>`;
+      updateNodeColor(node);
+
+      node.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (e.button === 0) {
+          buyFromConnected(node);
+        }
+      });
+      node.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        sellToConnected(node);
+      });
+      graph.appendChild(node);
+      return node;
+    }
+
+    function updateNodeColor(node) {
+      const value = parseInt(node.dataset.value);
+      node.className = 'node ' + (value > 0 ? 'positive' : value < 0 ? 'negative' : 'zero');
+      node.querySelector('.value').textContent = value;
+    }
+
+    function createEdge(node1, node2) {
+      const edge = document.createElement('div');
+      edge.className = 'edge';
+      updateEdgePosition(edge, node1, node2);
+      graph.insertBefore(edge, graph.firstChild);
+      edgeElements.push(edge);
+      return edge;
+    }
+
+    function updateEdgePosition(edge, node1, node2) {
+      const rect1 = node1.getBoundingClientRect();
+      const rect2 = node2.getBoundingClientRect();
+      const x1 = rect1.left + rect1.width / 2;
+      const y1 = rect1.top + rect1.height / 2;
+      const x2 = rect2.left + rect2.width / 2;
+      const y2 = rect2.top + rect2.height / 2;
+      const length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+      const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+      edge.style.width = `${length}px`;
+      edge.style.left = `${x1 - graph.getBoundingClientRect().left}px`;
+      edge.style.top = `${y1 - graph.getBoundingClientRect().top}px`;
+      edge.style.transform = `rotate(${angle}deg)`;
+    }
+
+    function activateEdge(edge, operation) {
+      const edgeElement = edgeElements[edges.indexOf(edge)];
+      if (operation === 'buy') {
+        edgeElement.classList.add('active-buy');
+      } else if (operation === 'sell') {
+        edgeElement.classList.add('active-sell');
+      }
+      setTimeout(() => {
+        edgeElement.classList.remove('active-buy', 'active-sell');
+      }, 150);
+    }
+
+    function sellToConnected(node) {
+      const index = nodes.indexOf(node);
+      const connectedEdges = edges.filter(edge => edge.includes(index));
+      connectedEdges.forEach(edge => {
+        const otherIndex = edge[0] === index ? edge[1] : edge[0];
+        nodes[otherIndex].dataset.value = parseInt(nodes[otherIndex].dataset.value) + 1;
+        updateNodeColor(nodes[otherIndex]);
+        activateEdge(edge, 'sell');
+      });
+      node.dataset.value = parseInt(node.dataset.value) - connectedEdges.length;
+      updateNodeColor(node);
+      checkWinCondition();
+    }
+
+    function buyFromConnected(node) {
+      const index = nodes.indexOf(node);
+      const connectedEdges = edges.filter(edge => edge.includes(index));
+      connectedEdges.forEach(edge => {
+        const otherIndex = edge[0] === index ? edge[1] : edge[0];
+        nodes[otherIndex].dataset.value = parseInt(nodes[otherIndex].dataset.value) - 1;
+        updateNodeColor(nodes[otherIndex]);
+        activateEdge(edge, 'buy');
+      });
+      node.dataset.value = parseInt(node.dataset.value) + connectedEdges.length;
+      updateNodeColor(node);
+      checkWinCondition();
+    }
+
+    function checkWinCondition() {
+      const allNonNegative = nodes.every(node => parseInt(node.dataset.value) >= 0);
+      if (allNonNegative) {
+        showMessage('Congratulations! You balanced all currency pairs!');
+      }
+    }
+
+    function showMessage(text) {
+      messageEl.textContent = text;
+      messageEl.classList.add('show');
+      setTimeout(() => {
+        messageEl.classList.remove('show');
+      }, 3000);
+    }
+
+    function newGame() {
+      graph.innerHTML = '';
+      nodes = [];
+      edges = [];
+      edgeElements = [];
+
+      const numNodes = 5 + Math.floor(Math.random() * 3);
+      const radius = Math.min(container.clientWidth, container.clientHeight) * 0.35;
+      const centerX = 0;
+      const centerY = -container.clientHeight * 0.05;
+
+      for (let i = 0; i < numNodes; i++) {
+        const angle = (i / numNodes) * 2 * Math.PI;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        const value = Math.floor(Math.random() * 11) - 5;
+        nodes.push(createNode(x, y, value));
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const currenciesA = [nodes[i].dataset.currency1, nodes[i].dataset.currency2];
+          const currenciesB = [nodes[j].dataset.currency1, nodes[j].dataset.currency2];
+
+          const commonCurrencies = currenciesA.filter(currency => currenciesB.includes(currency));
+          if (commonCurrencies.length > 0) {
+            edges.push([i, j]);
+            createEdge(nodes[i], nodes[j]);
+          }
+        }
+      }
+
+      const totalDollars = edges.length - nodes.length + 1;
+      let currentTotal = nodes.reduce((sum, node) => sum + parseInt(node.dataset.value), 0);
+      nodes[0].dataset.value = parseInt(nodes[0].dataset.value) + (totalDollars - currentTotal);
+      updateNodeColor(nodes[0]);
+    }
+
+    function computeSolution() {
+      const nodeValues = nodes.map(node => parseInt(node.dataset.value));
+      const moveList = [];
+      const adjacencyList = nodes.map((_, index) => {
+        const connectedEdges = edges.filter(edge => edge.includes(index));
+        return connectedEdges.map(edge => (edge[0] === index ? edge[1] : edge[0]));
+      });
+
+      const simulatedValues = [...nodeValues];
+      let maxIterations = 1000;
+
+      while (simulatedValues.some(value => value < 0) && maxIterations > 0) {
+        maxIterations--;
+
+        const negativeNodes = simulatedValues
+          .map((value, idx) => ({ value, idx }))
+          .filter(node => node.value < 0);
+
+        if (negativeNodes.length === 0) {
+          break;
+        }
+
+        for (const { idx } of negativeNodes) {
+          const neighbors = adjacencyList[idx];
+          simulatedValues[idx] += neighbors.length;
+          neighbors.forEach(neighborIdx => {
+            simulatedValues[neighborIdx] -= 1;
+          });
+          moveList.push({ nodeIndex: idx, operation: 'buy' });
+        }
+      }
+
+      if (simulatedValues.every(value => value >= 0)) {
+        return moveList;
+      } else {
+        return null;
+      }
+    }
+
+    async function animateSolution(moves) {
+      for (const move of moves) {
+        const node = nodes[move.nodeIndex];
+        if (move.operation === 'buy') {
+          buyFromConnected(node);
+        } else if (move.operation === 'sell') {
+          sellToConnected(node);
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      showMessage('All currency pairs are balanced!');
+    }
+
+    function solveGame() {
+      const moves = computeSolution();
+      if (moves) {
+        animateSolution(moves);
+      } else {
+        showMessage('No solution exists for this puzzle.');
+      }
+    }
+
+    function copyLevel() {
+      const levelData = {
+        nodes: nodes.map(node => ({
+          x: node.style.left,
+          y: node.style.top,
+          value: node.dataset.value,
+          currency1: node.dataset.currency1,
+          currency2: node.dataset.currency2
+        })),
+        edges
+      };
+
+      const levelString = JSON.stringify(levelData);
+      navigator.clipboard.writeText(levelString)
+        .then(() => showMessage('Level copied to clipboard!'))
+        .catch(err => showMessage('Failed to copy level'));
+    }
+
+    function pasteLevel() {
+      navigator.clipboard.readText()
+        .then(levelString => {
+          const levelData = JSON.parse(levelString);
+          loadLevel(levelData);
+          showMessage('Level pasted from clipboard!');
+        })
+        .catch(err => showMessage('Failed to paste level'));
+    }
+
+    function loadLevel(levelData) {
+      graph.innerHTML = '';
+      nodes = [];
+      edges = levelData.edges;
+      edgeElements = [];
+
+      levelData.nodes.forEach(nodeData => {
+        const node = createNode(parseInt(nodeData.x), parseInt(nodeData.y), parseInt(nodeData.value));
+        node.dataset.currency1 = nodeData.currency1;
+        node.dataset.currency2 = nodeData.currency2;
+        updateNodeColor(node);
+        nodes.push(node);
+      });
+
+      edges.forEach(edge => {
+        createEdge(nodes[edge[0]], nodes[edge[1]]);
+      });
+    }
+
+    newGameBtn.addEventListener('click', newGame);
+    solveBtn.addEventListener('click', solveGame);
+    copyLevelBtn.addEventListener('click', copyLevel);
+    pasteLevelBtn.addEventListener('click', pasteLevel);
+
+    window.addEventListener('resize', () => {
+      edges.forEach((edge, i) => {
+        updateEdgePosition(edgeElements[i], nodes[edge[0]], nodes[edge[1]]);
+      });
+    });
+
+    newGame();
+  </script>
+</body>
+</html>
